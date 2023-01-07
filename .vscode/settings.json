@@ -1,0 +1,12 @@
+{
+    "files.associations": {
+        "main.h": "c"
+    },
+    "makefile.launchConfigurations": [
+        {
+            "cwd": "c:\\Users\\Desktop\\Documents\\stm32f405test\\build",
+            "binaryPath": "c:\\Users\\Desktop\\Documents\\stm32f405test\\build\\stm32f405test.elf",
+            "binaryArgs": []
+        }
+    ]
+}
