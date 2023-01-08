@@ -3,7 +3,8 @@
         {
             "name": "STM32 F4",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/Drivers"
             ],
             "defines": [
                 "_DEBUG",
@@ -20,7 +21,6 @@
             ],
             "cStandard": "c11",
             "cppStandard": "c++17"
-            
         }
     ],
     "version": 4
