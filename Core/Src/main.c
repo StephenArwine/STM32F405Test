@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "usart.h"
 #include "usb_device.h"
 #include "gpio.h"
@@ -59,10 +60,14 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-  uint8_t UARTTXBUFFER[64];
-  char UART_RING_BUFFER[64];
-  struct ringbuffer UART_RING_BUFFER_STRUCT;
-  
+  uint8_t UARTRXBUFFER[64];
+  uint8_t UARTRXBUFFER_SIZE = 64;
+
+  uint8_t USB_RX_RING_BUFFER[64];
+  struct ringbuffer USB_RX_RING_BUFFER_STRUCT;
+
+  uint8_t USART3_RX_RING_BUFFER[64];
+  struct ringbuffer USART3_RX_RING_BUFFER_STRUCT;
 
 /* USER CODE END 0 */
 
@@ -82,8 +87,8 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
-      ringbuffer_init( &UART_RING_BUFFER_STRUCT, UART_RING_BUFFER, sizeof( UART_RING_BUFFER));
-
+      ringbuffer_init( &USB_RX_RING_BUFFER_STRUCT, USB_RX_RING_BUFFER, sizeof( USB_RX_RING_BUFFER));
+      ringbuffer_init( &USART3_RX_RING_BUFFER_STRUCT, USART3_RX_RING_BUFFER, sizeof( USART3_RX_RING_BUFFER));
 
   /* USER CODE END Init */
 
@@ -96,31 +101,42 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART3_UART_Init();
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
+
+  char *message = "Hello World!\r\n";
+  uint8_t UARTdataRx;
+  uint8_t USBdataRx;
+
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart3, UARTRXBUFFER, UARTRXBUFFER_SIZE);
+  //__HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-
-  char *message = "Hello World!\r\n";
-  uint8_t dataRx;
-
   while (1)
   {
-    /* USER CODE END WHILE */
+
     //HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
     //HAL_Delay(1000);
 
-        if (ringbuffer_num( &UART_RING_BUFFER_STRUCT) != 0) {
-            ringbuffer_get( &UART_RING_BUFFER_STRUCT, &dataRx);
-            HAL_UART_Transmit(&huart3, &dataRx, 1, 100);
+        if (ringbuffer_num( &USB_RX_RING_BUFFER_STRUCT) != 0) {
+            ringbuffer_get( &USB_RX_RING_BUFFER_STRUCT, &UARTdataRx);
+            HAL_UART_Transmit(&huart3, &UARTdataRx, 1, 100);
         }
-    //HAL_UART_Transmit(&huart3, (uint8_t *)message, strlen(message), 100);
 
-    //CDC_Transmit_FS( (uint8_t *)message, strlen(message));
+        if (ringbuffer_num( &USART3_RX_RING_BUFFER_STRUCT) != 0) {
+            ringbuffer_get( &USART3_RX_RING_BUFFER_STRUCT, &USBdataRx);
+            CDC_Transmit_FS(&USBdataRx, 1);
+        }
+
+    //HAL_UART_Transmit(&huart3, (uint8_t *)message, strlen(message), 100);
+ 
+
+    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
@@ -174,6 +190,25 @@ void SystemClock_Config(void)
 
 /* USER CODE BEGIN 4 */
 
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) 
+{
+    if(huart-> Instance == USART3){
+      uint8_t bytes = (uint8_t) Size;
+      for (uint8_t i = 0; i < bytes; i++){
+        ringbuffer_put(&USART3_RX_RING_BUFFER_STRUCT, UARTRXBUFFER[i]);
+      }
+      HAL_UARTEx_ReceiveToIdle_DMA(&huart3, UARTRXBUFFER, UARTRXBUFFER_SIZE);
+    }
+}
+
+void USB_RX_RINGPUFFER_PUT(uint8_t *Buf, uint16_t *Len)
+{
+    uint8_t bytes = (uint8_t) *Len;
+    for (uint8_t i = 0; i < bytes; i++){
+    ringbuffer_put(&USB_RX_RING_BUFFER_STRUCT, Buf[i]);
+    }
+}
+
 /* USER CODE END 4 */
 
 /**
@@ -189,14 +224,6 @@ void Error_Handler(void)
   {
   }
   /* USER CODE END Error_Handler_Debug */
-}
-
-void USBTOUARTTEST(uint8_t *Buf, uint16_t *Len)
-{
-    uint8_t bytes = (uint8_t) *Len;
-    for (uint8_t i = 0; i < bytes; i++){
-    ringbuffer_put(&UART_RING_BUFFER_STRUCT, Buf[i]);
-    }
 }
 
 #ifdef  USE_FULL_ASSERT

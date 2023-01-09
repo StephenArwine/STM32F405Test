@@ -2,7 +2,8 @@
     "files.associations": {
         "main.h": "c",
         "usbd_cdc_if.h": "c",
-        "usbd_cdc.h": "c"
+        "usbd_cdc.h": "c",
+        "usart.h": "c"
     },
     "makefile.launchConfigurations": [
         {

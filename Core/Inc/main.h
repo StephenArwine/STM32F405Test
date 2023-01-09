@@ -53,7 +53,8 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-void USBTOUARTTEST(uint8_t* Buf, uint16_t *Len);
+void USB_RX_RINGPUFFER_PUT(uint8_t* Buf, uint16_t *Len);
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart);
 
 /* USER CODE END EFP */
 
