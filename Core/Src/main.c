@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "dma.h"
+#include "tim.h"
 #include "usart.h"
 #include "usb_device.h"
 #include "gpio.h"
@@ -69,6 +70,9 @@ void SystemClock_Config(void);
   uint8_t USART3_RX_RING_BUFFER[64];
   struct ringbuffer USART3_RX_RING_BUFFER_STRUCT;
 
+  uint8_t buzzing = 0;
+
+
 /* USER CODE END 0 */
 
 /**
@@ -104,28 +108,49 @@ int main(void)
   MX_DMA_Init();
   MX_USART3_UART_Init();
   MX_USB_DEVICE_Init();
+  MX_TIM3_Init();
+  MX_TIM2_Init();
   /* USER CODE BEGIN 2 */
 
   char *message = "Hello World!\r\n";
   uint8_t UARTdataRx;
   uint8_t USBdataRx;
+  uint32_t buzzerF = 100;
 
   HAL_UARTEx_ReceiveToIdle_DMA(&huart3, UARTRXBUFFER, UARTRXBUFFER_SIZE);
   //__HAL_DMA_DISABLE_IT(&hdma_usart3_rx, DMA_IT_HT);
+
+ //TIM3->CCR2 = 500;
+ //HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_2);
+  TIM3->ARR = buzzerF;
+
+  HAL_TIM_Base_Start_IT(&htim2);
+  HAL_TIM_PWM_Start_IT(&htim2, TIM_CHANNEL_1);
+  TIM2->CCR1 = 100;
+
 
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  uint32_t tick;
+  tick = HAL_GetTick();
+  
   while (1)
   {
-
-    //HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
-    //HAL_Delay(1000);
+    if ((HAL_GetTick() - tick) > 1000)
+    {
+    HAL_GPIO_TogglePin(LED1_GPIO_Port,LED1_Pin);
+    tick = HAL_GetTick();
+    }
+    
 
         if (ringbuffer_num( &USB_RX_RING_BUFFER_STRUCT) != 0) {
             ringbuffer_get( &USB_RX_RING_BUFFER_STRUCT, &UARTdataRx);
             HAL_UART_Transmit(&huart3, &UARTdataRx, 1, 100);
+            //HAL_TIM_OC_Stop(&htim3,TIM_CHANNEL_2);
+            //buzzerF += 10;
+            //TIM3->ARR = buzzerF;
         }
 
         if (ringbuffer_num( &USART3_RX_RING_BUFFER_STRUCT) != 0) {
@@ -208,6 +233,23 @@ void USB_RX_RINGPUFFER_PUT(uint8_t *Buf, uint16_t *Len)
     ringbuffer_put(&USB_RX_RING_BUFFER_STRUCT, Buf[i]);
     }
 }
+
+void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim){
+
+  if (htim-> Instance == TIM2)
+  {
+      if (buzzing == 0)
+      {
+        buzzing = 1;
+        HAL_TIM_OC_Start_IT(&htim3, TIM_CHANNEL_2);
+      } else
+      {
+        buzzing = 0;
+        HAL_TIM_OC_Stop_IT(&htim3, TIM_CHANNEL_2);
+      }
+  }
+}
+
 
 /* USER CODE END 4 */
 
